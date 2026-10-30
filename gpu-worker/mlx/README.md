@@ -73,7 +73,7 @@ keep `fallback_to_local` on in Censorarr, or schedule processing for times the M
 | `ASR_CHUNK_SECONDS` | `300` | Audio is transcribed in chunks; progress updates after each chunk |
 | `ASR_CHUNK_OVERLAP_SECONDS` | `2` | Overlap between chunks (words in the overlap are de-duplicated) |
 | `ASR_MAX_UPLOAD_GB` | `2` | Reject larger uploads |
-| `ASR_REPEAT_LIMIT` | `8` | Drop a token after this many consecutive repeats (guards against greedy-decoding loops); `0` disables |
+| `ASR_REPEAT_LIMIT` | `8` | Collapse runs of one word longer than this (greedy-decoding loops); the last kept repeat is stretched to cover the run so a real burst stays muted. `0` disables |
 
 ### Models
 

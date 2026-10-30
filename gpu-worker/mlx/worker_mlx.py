@@ -79,14 +79,16 @@ def _fmt_clock(seconds: float | int | None) -> str:
     return f'{h:02d}:{m:02d}:{sec:02d}'
 
 
-def _drop_repetition_loops(words: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], int]:
+def _drop_repetition_loops(words: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], dict[str, int]]:
     # Greedy decoding (mlx-whisper has no beam search) occasionally falls into a loop such as
     # "da da da ..." filling a whole 30s window. Keep the first `limit` repeats of a token and
-    # drop the rest so a runaway loop cannot become hundreds of words or one giant mute range.
+    # drop the rest so a runaway loop cannot become hundreds of words. The last kept repeat is
+    # stretched to the end of the run, so a genuine long burst of one word is still fully covered.
     if limit <= 0:
-        return words, 0
+        return words, {}
     kept: list[dict[str, Any]] = []
-    run_token, run_len, dropped = None, 0, 0
+    run_token, run_len = None, 0
+    dropped: dict[str, int] = {}
     for w in words:
         token = ''.join(ch for ch in str(w.get('word', '')).lower() if ch.isalnum())
         if token and token == run_token:
@@ -94,9 +96,10 @@ def _drop_repetition_loops(words: list[dict[str, Any]], limit: int) -> tuple[lis
         else:
             run_token, run_len = token, 1
         if run_len > limit:
-            dropped += 1
+            dropped[token] = dropped.get(token, 0) + 1
+            kept[-1]['end'] = max(kept[-1]['end'], w['end'])
             continue
-        kept.append(w)
+        kept.append(dict(w))
     return kept, dropped
 
 
@@ -208,7 +211,8 @@ def _engine_main(cmd_q, result_q, event_q) -> None:
 
             words, dropped = _drop_repetition_loops(words, REPEAT_LIMIT)
             if dropped:
-                _engine_log(event_q, f'MLX job {job_id[:8]}: dropped {dropped} word(s) from a repetition loop', 'WARNING')
+                detail = ', '.join(f'"{t}" x{n}' for t, n in dropped.items())
+                _engine_log(event_q, f'MLX job {job_id[:8]}: collapsed repetition loop(s), dropped {detail}', 'WARNING')
             elapsed = round(time.time() - started, 3)
             result_q.put({
                 'job_id': job_id,

@@ -12,17 +12,26 @@ class RepetitionLoopTests(unittest.TestCase):
     def test_keeps_short_legitimate_repeats(self):
         words = _words('fuck', 'fuck,', 'Fuck!', 'fuck', 'off')
         kept, dropped = w._drop_repetition_loops(words, 8)
-        self.assertEqual((len(kept), dropped), (5, 0))
+        self.assertEqual((len(kept), dropped), (5, {}))
 
     def test_truncates_runaway_loop(self):
         words = _words('Kohidi', *(['da'] * 220), 'end')
         kept, dropped = w._drop_repetition_loops(words, 8)
-        self.assertEqual(dropped, 212)
+        self.assertEqual(dropped, {'da': 212})
         self.assertEqual([x['word'] for x in kept], ['Kohidi'] + ['da'] * 8 + ['end'])
+
+    def test_last_kept_repeat_covers_the_whole_run(self):
+        # A real 12x burst must stay fully muted: the 8th kept word stretches to the 12th's end.
+        words = _words('hey', *(['fuck'] * 12), 'off')
+        kept, dropped = w._drop_repetition_loops(words, 8)
+        self.assertEqual(dropped, {'fuck': 4})
+        self.assertEqual(kept[8]['end'], words[12]['end'])
+        self.assertEqual(kept[8]['start'], words[8]['start'])
+        self.assertEqual(words[8]['end'], 8.5)  # input not mutated
 
     def test_disabled_with_zero_limit(self):
         words = _words(*(['da'] * 20))
-        self.assertEqual(w._drop_repetition_loops(words, 0), (words, 0))
+        self.assertEqual(w._drop_repetition_loops(words, 0), (words, {}))
 
 
 class ModelResolutionTests(unittest.TestCase):
