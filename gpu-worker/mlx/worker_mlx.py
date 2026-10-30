@@ -534,4 +534,7 @@ async def transcribe(
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host=os.environ.get('ASR_HOST', '127.0.0.1'), port=int(os.environ.get('ASR_PORT', '9000')), workers=1)
+    host = os.environ.get('ASR_HOST', '127.0.0.1')
+    if host not in {'127.0.0.1', 'localhost', '::1'} and not TOKEN:
+        raise SystemExit(f'Refusing to listen on {host} without ASR_WORKER_TOKEN; set a token or use ASR_HOST=127.0.0.1')
+    uvicorn.run(app, host=host, port=int(os.environ.get('ASR_PORT', '9000')), workers=1)

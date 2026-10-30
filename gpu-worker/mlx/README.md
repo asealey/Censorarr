@@ -46,6 +46,15 @@ curl -H 'X-Censorarr-Token: a-long-random-token' http://127.0.0.1:9000/health
 
 A healthy worker reports `"ok": true` and `"mlx_available": true`.
 
+The worker refuses to listen on anything other than localhost without `ASR_WORKER_TOKEN`.
+
+### Run in the background
+
+[`com.censorarr.mlx-worker.plist.example`](com.censorarr.mlx-worker.plist.example) is a LaunchAgent
+template that starts the worker at login and restarts it if it exits; the install commands are in
+the file. A LaunchAgent only runs while you are logged in, and a sleeping Mac cannot transcribe:
+keep `fallback_to_local` on in Censorarr, or schedule processing for times the Mac is awake.
+
 ## Configuration
 
 | Variable | Default | Purpose |

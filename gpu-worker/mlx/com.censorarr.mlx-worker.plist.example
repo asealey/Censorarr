@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Example LaunchAgent that keeps the Censorarr MLX worker running while you are logged in.
+  Replace /PATH/TO/Censorarr and the token, then:
+    cp com.censorarr.mlx-worker.plist.example ~/Library/LaunchAgents/com.censorarr.mlx-worker.plist
+    chmod 600 ~/Library/LaunchAgents/com.censorarr.mlx-worker.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.censorarr.mlx-worker.plist
+  Stop / remove:
+    launchctl bootout gui/$(id -u)/com.censorarr.mlx-worker
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.censorarr.mlx-worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/PATH/TO/Censorarr/gpu-worker/mlx/.venv/bin/python</string>
+    <string>/PATH/TO/Censorarr/gpu-worker/mlx/worker_mlx.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/PATH/TO/Censorarr/gpu-worker/mlx</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ASR_WORKER_TOKEN</key>
+    <string>REPLACE_WITH_A_LONG_RANDOM_TOKEN</string>
+    <!-- 0.0.0.0 serves other machines on the LAN; use 127.0.0.1 for Docker Desktop on this Mac only. -->
+    <key>ASR_HOST</key>
+    <string>0.0.0.0</string>
+    <key>ASR_MODEL</key>
+    <string>large-v3-turbo</string>
+    <!-- ffmpeg from Homebrew must be on PATH. -->
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/censorarr-mlx-worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/censorarr-mlx-worker.log</string>
+</dict>
+</plist>
