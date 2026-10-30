@@ -1565,6 +1565,17 @@ def config_signature(cfg: dict, profanity_path: Path) -> str:
     return h.hexdigest()[:20]
 
 
+def automatic_scan_should_skip(old: dict, fp: str, sig: str) -> bool:
+    """True when an automatic scan should leave an unchanged file alone.
+
+    Dry-run reports and files waiting in Review already have a current report. Re-analyzing
+    them on every scan wastes the transcription again and replaces the report being reviewed.
+    A changed file or changed settings (fingerprint/config signature) still re-analyzes.
+    """
+    return (old.get("fingerprint") == fp and old.get("config_signature") == sig
+            and old.get("status") in {"dry-run", "awaiting-review"})
+
+
 def fingerprint(path: Path) -> str:
     st = path.stat()
     return f"{st.st_size}:{st.st_mtime_ns}"
@@ -2140,7 +2151,7 @@ def daemon(cfg: dict, args: argparse.Namespace) -> None:
             return
         if not force and marker_matches(p, cfg):
             return
-        if not force and old.get("fingerprint") == fp and old.get("config_signature") == sig and old.get("status") == "dry-run":
+        if not force and automatic_scan_should_skip(old, fp, sig):
             return
         # Do not burn hours retrying a deterministic failure every scan. A new
         # Censorarr version or a manual/GUI reprocess will try it again. Permission
