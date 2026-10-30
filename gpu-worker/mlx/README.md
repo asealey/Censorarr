@@ -96,8 +96,10 @@ more accurate in those tests.
 
 For comparison, Censorarr's built-in CPU path (faster-whisper int8, Docker Desktop with 10 cores on
 the same M4) ran `small.en` at about 10x realtime (beam 1) and `large-v3-turbo` at about 5-6x. On a
-fast Mac the MLX worker is a modest speed-up that keeps the CPU free; it matters most when the main
-Censorarr server runs on a small machine such as a NAS or Raspberry Pi.
+fast Mac the MLX worker is a modest speed-up that keeps the CPU free. It matters most when the main
+Censorarr server runs on a small machine: on a Raspberry Pi 5 (4 cores, 8 GB) the same CPU path ran
+`small.en` at 0.6-1.0x realtime with Censorarr's default beam 5 (1.1x with beam 1) and `large-v3-turbo`
+at 0.7x on clean dialogue, roughly 10x slower than this worker running `large-v3-turbo` on an M4.
 
 ## Differences from the CUDA worker
 
