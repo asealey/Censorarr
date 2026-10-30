@@ -34,6 +34,7 @@ MAX_UPLOAD_GB = float(os.environ.get('ASR_MAX_UPLOAD_GB', '2'))
 LOG_LINES = max(250, int(os.environ.get('ASR_LOG_LINES', '4000')))
 CHUNK_SECONDS = max(60.0, float(os.environ.get('ASR_CHUNK_SECONDS', '300')))
 OVERLAP_SECONDS = max(0.0, min(10.0, float(os.environ.get('ASR_CHUNK_OVERLAP_SECONDS', '2'))))
+REPEAT_LIMIT = int(os.environ.get('ASR_REPEAT_LIMIT', '8'))
 
 # Censorarr sends faster-whisper style names (small.en, large-v3, ...). Map them to the
 # mlx-community conversions; anything containing "/" is treated as a Hugging Face repo id.
@@ -70,6 +71,27 @@ def _fmt_clock(seconds: float | int | None) -> str:
     h, rem = divmod(total, 3600)
     m, sec = divmod(rem, 60)
     return f'{h:02d}:{m:02d}:{sec:02d}'
+
+
+def _drop_repetition_loops(words: list[dict[str, Any]], limit: int) -> tuple[list[dict[str, Any]], int]:
+    # Greedy decoding (mlx-whisper has no beam search) occasionally falls into a loop such as
+    # "da da da ..." filling a whole 30s window. Keep the first `limit` repeats of a token and
+    # drop the rest so a runaway loop cannot become hundreds of words or one giant mute range.
+    if limit <= 0:
+        return words, 0
+    kept: list[dict[str, Any]] = []
+    run_token, run_len, dropped = None, 0, 0
+    for w in words:
+        token = ''.join(ch for ch in str(w.get('word', '')).lower() if ch.isalnum())
+        if token and token == run_token:
+            run_len += 1
+        else:
+            run_token, run_len = token, 1
+        if run_len > limit:
+            dropped += 1
+            continue
+        kept.append(w)
+    return kept, dropped
 
 
 def resolve_model(name: str | None) -> str:
@@ -178,6 +200,9 @@ def _engine_main(cmd_q, result_q, event_q) -> None:
                     break
                 start += step
 
+            words, dropped = _drop_repetition_loops(words, REPEAT_LIMIT)
+            if dropped:
+                _engine_log(event_q, f'MLX job {job_id[:8]}: dropped {dropped} word(s) from a repetition loop', 'WARNING')
             elapsed = round(time.time() - started, 3)
             result_q.put({
                 'job_id': job_id,

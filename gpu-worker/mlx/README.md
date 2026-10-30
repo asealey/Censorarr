@@ -57,6 +57,7 @@ A healthy worker reports `"ok": true` and `"mlx_available": true`.
 | `ASR_CHUNK_SECONDS` | `300` | Audio is transcribed in chunks; progress updates after each chunk |
 | `ASR_CHUNK_OVERLAP_SECONDS` | `2` | Overlap between chunks (words in the overlap are de-duplicated) |
 | `ASR_MAX_UPLOAD_GB` | `2` | Reject larger uploads |
+| `ASR_REPEAT_LIMIT` | `8` | Drop a token after this many consecutive repeats (guards against greedy-decoding loops); `0` disables |
 
 ### Models
 
@@ -71,6 +72,11 @@ downloaded to the Hugging Face cache on first use:
 | `distil-large-v3` | `mlx-community/distil-whisper-large-v3` |
 
 Any value containing `/` is used as a Hugging Face repo id directly.
+
+On an M4 (24 GB), `small.en` ran at roughly 17-20x realtime and `large-v3-turbo` at roughly 6-7x,
+with `large-v3-turbo` catching slightly more profanity in noisy, overlapping dialogue. `large-v3-turbo`
+is a good default when the Mac has the headroom; `medium.en` and `large-v3` were slower without being
+more accurate in those tests.
 
 ## Differences from the CUDA worker
 
