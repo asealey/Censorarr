@@ -34,6 +34,12 @@ class ModelResolutionTests(unittest.TestCase):
     def test_repo_ids_pass_through(self):
         self.assertEqual(w.resolve_model('someone/whisper-x'), 'someone/whisper-x')
 
+    def test_requests_may_only_name_plain_models(self):
+        for ok in ('small.en', 'large-v3-turbo', 'distil-large-v3', 'tiny'):
+            self.assertTrue(w.REQUEST_MODEL_RE.match(ok), ok)
+        for bad in ('someone/whisper-x', '/etc', '../models', '..', '', 'a b', 'x' * 65):
+            self.assertFalse(w.REQUEST_MODEL_RE.match(bad), bad)
+
 
 if __name__ == '__main__':
     unittest.main()

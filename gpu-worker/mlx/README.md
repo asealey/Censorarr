@@ -46,7 +46,14 @@ curl -H 'X-Censorarr-Token: a-long-random-token' http://127.0.0.1:9000/health
 
 A healthy worker reports `"ok": true` and `"mlx_available": true`.
 
-The worker refuses to listen on anything other than localhost without `ASR_WORKER_TOKEN`.
+### Security
+
+- The worker refuses to listen on anything other than localhost without `ASR_WORKER_TOKEN`
+  (when started with `python worker_mlx.py`; launching it through `uvicorn` directly skips this check).
+- Traffic is plain HTTP, like the CUDA worker: the token and audio cross the network unencrypted, so
+  only serve a trusted LAN.
+- Requests may only name plain model names such as `small.en` or `large-v3-turbo`. Hugging Face repo
+  ids and local paths are accepted only from the worker's own `ASR_MODEL` / `ASR_MLX_MODEL`.
 
 ### Run in the background
 
@@ -80,7 +87,7 @@ downloaded to the Hugging Face cache on first use:
 | `large-v3-turbo`, `turbo` | `mlx-community/whisper-large-v3-turbo` |
 | `distil-large-v3` | `mlx-community/distil-whisper-large-v3` |
 
-Any value containing `/` is used as a Hugging Face repo id directly.
+A value containing `/` in `ASR_MODEL` or `ASR_MLX_MODEL` is used as a Hugging Face repo id directly.
 
 On an M4 (24 GB), `small.en` ran at roughly 17-20x realtime and `large-v3-turbo` at roughly 6-7x,
 with `large-v3-turbo` catching slightly more profanity in noisy, overlapping dialogue. `large-v3-turbo`

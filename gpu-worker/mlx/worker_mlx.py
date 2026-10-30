@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hmac
 import multiprocessing as mp
 import os
 import platform
+import re
 import tempfile
 import threading
 import time
@@ -44,6 +46,10 @@ MODEL_ALIASES = {
     'turbo': 'mlx-community/whisper-large-v3-turbo',
     'distil-large-v3': 'mlx-community/distil-whisper-large-v3',
 }
+
+# Model names a client may request. Hugging Face repo ids and local paths ("/") are accepted only
+# from this Mac's own environment (ASR_MODEL / ASR_MLX_MODEL), never from a request.
+REQUEST_MODEL_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')
 
 _log = deque(maxlen=LOG_LINES)
 _log_lock = threading.RLock()
@@ -421,7 +427,8 @@ def gpu_info() -> dict:
 
 
 def auth(request: Request) -> None:
-    if TOKEN and request.headers.get('X-Censorarr-Token', '') != TOKEN:
+    supplied = request.headers.get('X-Censorarr-Token', '')
+    if TOKEN and not hmac.compare_digest(supplied.encode('utf-8'), TOKEN.encode('utf-8')):
         raise HTTPException(401, 'Invalid worker token')
 
 
@@ -492,13 +499,17 @@ async def transcribe(
     if not gpu_info()['mlx_available']:
         raise HTTPException(503, 'No Apple GPU (Metal) visible to the MLX worker')
     clen = request.headers.get('content-length')
-    if clen and int(clen) > int(MAX_UPLOAD_GB * 1024**3):
+    try: clen_bytes = int(clen) if clen else 0
+    except ValueError: raise HTTPException(400, 'Invalid Content-Length')
+    if clen_bytes > int(MAX_UPLOAD_GB * 1024**3):
         raise HTTPException(413, 'Audio upload exceeds ASR_MAX_UPLOAD_GB')
     prompt = ''
     if request.headers.get('X-Censorarr-Prompt-B64'):
         try: prompt = base64.b64decode(request.headers['X-Censorarr-Prompt-B64']).decode('utf-8')
         except Exception: raise HTTPException(400, 'Invalid prompt header')
     name = (model or DEFAULT_MODEL).strip()
+    if model and not MODEL_OVERRIDE and not REQUEST_MODEL_RE.match(name):
+        raise HTTPException(400, 'Unsupported model name; set ASR_MLX_MODEL on the worker to use a custom repo')
     jid = (job_id or request.headers.get('X-Censorarr-Job-ID') or uuid.uuid4().hex).strip()
     total = 0
     fd, tmp = tempfile.mkstemp(prefix='censorarr-asr-', suffix='.wav'); os.close(fd); p = Path(tmp)
