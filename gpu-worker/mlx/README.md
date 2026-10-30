@@ -94,6 +94,11 @@ with `large-v3-turbo` catching slightly more profanity in noisy, overlapping dia
 is a good default when the Mac has the headroom; `medium.en` and `large-v3` were slower without being
 more accurate in those tests.
 
+For comparison, Censorarr's built-in CPU path (faster-whisper int8, Docker Desktop with 10 cores on
+the same M4) ran `small.en` at about 10x realtime (beam 1) and `large-v3-turbo` at about 5-6x. On a
+fast Mac the MLX worker is a modest speed-up that keeps the CPU free; it matters most when the main
+Censorarr server runs on a small machine such as a NAS or Raspberry Pi.
+
 ## Differences from the CUDA worker
 
 - `mlx-whisper` decodes greedily and has no VAD, so `beam_size` and `vad_filter` are accepted but ignored (logged per job).
